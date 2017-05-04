@@ -105,7 +105,22 @@ def find_callsites(elf, symdict):
       offset += ins.info.length
   return calls
 
-def generate_stacktrace(elf, memory, big):
+def generate_frame(symdict, dwarf_info, mnemonic, call_addr, callee_addr):
+  caller = address_to_containing_function(symdict, call_addr)
+  sys.stdout.write("0x{:06x}: {} in {}".format(call_addr, mnemonic, caller))
+
+  # TODO: This is fairly slow
+  location = address_to_location(dwarf_info, call_addr)
+  if location:
+    sys.stdout.write(" at {}".format(location))
+
+  if callee_addr:
+    callee = address_to_function(symdict, callee_addr)
+    sys.stdout.write(" called {}".format(callee))
+
+  sys.stdout.write("\n")
+
+def generate_stacktrace(elf, memory, big, isr_ret):
   """
   Generate a stacktrace on stdout from looking at the given memory dump
   and elf file.
@@ -130,19 +145,7 @@ def generate_stacktrace(elf, memory, big):
 
       if ptr in callsites:
         call = callsites[ptr]
-        caller = address_to_containing_function(symdict, call.instruction.addr)
-        sys.stdout.write("0x{:06x}: {} in {}".format(call.instruction.addr, call.instruction.info.mnemonic, caller))
-
-        # TODO: This is fairly slow
-        location = address_to_location(dwarf_info, call.instruction.addr)
-        if location:
-          sys.stdout.write(" at {}".format(location))
-
-        if call.callee_addr:
-          callee = address_to_function(symdict, call.callee_addr)
-          sys.stdout.write(" called {}".format(callee))
-
-        sys.stdout.write("\n")
+        generate_frame(symdict, dwarf_info, call.instruction.info.mnemonic, call.instruction.addr, call.callee_addr)
 
 def main():
   parser = argparse.ArgumentParser(description = 'Analyze AVR memory dumps')
