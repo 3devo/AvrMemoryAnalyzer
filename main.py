@@ -146,8 +146,6 @@ def generate_stacktrace(elf, memory, big):
 
 def main():
   parser = argparse.ArgumentParser(description = 'Analyze AVR memory dumps')
-  parser.add_argument('--big', action='store_true',
-      help='specify big memory device (> 128 KB Flash)')
   parser.add_argument('--elf', help='Compiled elf file')
   parser.add_argument('--cppfilt', help='Path to c++filt command')
   parser.add_argument('memory', help='Memory dump file')
@@ -158,17 +156,38 @@ def main():
   if args.cppfilt:
     cppfilt = args.cppfilt
 
+  big = False
+
   # Read elf file if specified
   elf = None
   if args.elf:
     # Note that file is kept open, ELFFile reads from it on the fly.
     elf = ELFFile(open(args.elf, 'rb'))
 
+    if elf['e_machine'] != 'EM_AVR':
+      sys.stderr.write("Not an AVR elf file (machine id: 0x%{:04X})\n".format(elf['e_machine']))
+      sys.exit(1)
+
+    # https://sourceware.org/git/gitweb.cgi?p=binutils-gdb.git;a=blob;f=include/elf/avr.h;h=70d750b8c7147501dfc6c9cc2c201028e970171e;hb=HEAD#l27
+    # #define EF_AVR_MACH 0x7F
+    # #define E_AVR_MACH_AVR6     6
+    # #define E_AVR_MACH_AVRTINY 100
+    arch = elf['e_flags'] & 0x7F
+    if arch >= 100:
+      sys.stderr.write("AVR Xmega not supported\n")
+      sys.exit(1)
+
+    # avr6 chips have a > 128kbyte flash and need a 3-byte return
+    # address
+    if arch == 6:
+      print("AVR6 architecture detected, assuming 3-byte return addresses")
+      big = True
+
   # Read memory file
   memory = IntelHex(args.memory)
 
   if elf:
-    generate_stacktrace(elf, memory, args.big)
+    generate_stacktrace(elf, memory, big)
   else:
     print("Need elf file to generate stack trace")
 
