@@ -36,11 +36,21 @@ might analyze these too). The example code contains a `dumpMemory()`
 function that can also be separately called at any time to generate a
 stack dump.
 
+In addition to dumping memory, the example also prints SP and the return
+address of the function calling `dumpMemory()`. The latter can be useful
+in an ISR, to show where the interrupt occured (see the `--isr-return`
+option for that).
+
 Running
 -------
 To run this tool:
 
-    $ ./main.py --elf program.elf dump.hex
+    $ ./main.py --isr-return 0x123 --elf program.elf dump.hex
+
+The `isr-return` option can be passed to include the (watchdog) ISR
+return address (e.g. where the interrupt occured) in the stacktrace.
+This address is printed by the example code, but this option can be
+omitted entirely.
 
 Limitations
 -----------
@@ -60,6 +70,10 @@ code for each function to figure out the stack frame size (which is
 probably hard to get right). I believe gdb does the latter, so
 converting a memory dump to a core dump in ELF format that gdb can read
 might be a future addition to this tool.
+
+The `dumpMemory()` example code does very limited analysis (only the
+most recent frame), which allows analyzing a single ISR frame (if
+`dumpMemory()` is called directly from the ISR).
 
 Dependencies
 ------------

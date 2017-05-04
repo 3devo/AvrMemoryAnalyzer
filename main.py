@@ -134,6 +134,9 @@ def generate_stacktrace(elf, memory, big, isr_ret):
 
   print("Stacktrace follows (most recent call first)")
 
+  if isr_ret:
+    generate_frame(symdict, dwarf_info, 'interrupt', isr_ret, None)
+
   # Find all 2 or 3-byte pointers in the stack that match a call
   # instruction (e.g. are likely a return address on the stack)
   addresses = memory.addresses()
@@ -149,6 +152,7 @@ def generate_stacktrace(elf, memory, big, isr_ret):
 
 def main():
   parser = argparse.ArgumentParser(description = 'Analyze AVR memory dumps')
+  parser.add_argument('--isr-return', help='ISR return (byte) address to prepend to the trace', metavar='0x123', type=lambda x: int(x, 0))
   parser.add_argument('--elf', help='Compiled elf file')
   parser.add_argument('--cppfilt', help='Path to c++filt command')
   parser.add_argument('memory', help='Memory dump file')
@@ -190,7 +194,7 @@ def main():
   memory = IntelHex(args.memory)
 
   if elf:
-    generate_stacktrace(elf, memory, big)
+    generate_stacktrace(elf, memory, big, args.isr_return)
   else:
     print("Need elf file to generate stack trace")
 
