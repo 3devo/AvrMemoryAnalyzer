@@ -93,3 +93,9 @@ external tool is used instead.
 
 [one]: https://pypi.python.org/pypi/cxxfilt/0.1.0
 [two]: https://github.com/P4N74/demangler
+
+License
+-------
+Most of the code contained in this repository is licensed under the 3-clause
+BSD license, one bit is public domain code. See the individual source files
+for the full licensing terms.
