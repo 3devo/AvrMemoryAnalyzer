@@ -127,7 +127,7 @@ inline void dumpMemoryIhex(uint8_t *addr, uint8_t *end) {
 	}
 #endif
 
-inline void dumpMemory() __attribute__((__always_inline__))
+inline void dumpMemory() __attribute__((__always_inline__));
 inline void dumpMemory() {
   ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
     uint16_t sp = SP;
