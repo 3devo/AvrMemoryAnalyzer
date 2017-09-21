@@ -129,8 +129,9 @@ inline void dumpMemoryIhex(uint8_t *addr, uint8_t *end) {
 
 inline void dumpMemory() __attribute__((__always_inline__));
 inline void dumpMemory() {
+  uint16_t sp;
   ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-    uint16_t sp = SP;
+    sp = SP;
   }
   Serial.print("SP = 0x");
   Serial.println(sp, HEX);
