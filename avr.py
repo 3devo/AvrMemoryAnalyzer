@@ -228,6 +228,11 @@ CallInfo = namedtuple('CallInfo', ['instruction', 'callee_addr'])
 def analyze_call(ins):
   if ins.info.mnemonic == 'call':
     callee_addr = ins.operands[0] * 2
+  elif ins.info.mnemonic == 'rcall' and ins.operands[0] == 0:
+    # gcc uses rcall 0 instructions as a way to advance SP by 2/3 bytes
+    # when setting up the stack frame. This is never a meaningful call,
+    # so just ignore them.
+    return None
   elif ins.info.mnemonic == 'rcall':
     callee_addr = ins.addr + (ins.operands[0] + 1) * 2
   elif ins.info.mnemonic == 'icall' or ins.info.mnemonic == 'eicall':
