@@ -31,6 +31,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <util/atomic.h>
 
 inline void init_wdt() {
+  // Note that this enables the watchdog interrupt, but also keeps the
+  // watchdog itself enabled. The first time the watchdog triggers, the
+  // interrupt runs and dumps the stack, but the second time it
+  // triggers, the system is reset to prevent deadlock. This could cause
+  // the memory output to be cut short (especially on low baudrates).
   wdt_enable(WDTO_4S);
   WDTCSR |= (1 << WDIE);
 }

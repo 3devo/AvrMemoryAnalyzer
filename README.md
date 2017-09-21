@@ -41,6 +41,44 @@ address of the function calling `dumpMemory()`. The latter can be useful
 in an ISR, to show where the interrupt occured (see the `--isr-return`
 option for that).
 
+Here's an example of how that could look (IO registers were trimmed for
+brevity):
+
+```
+SP = 0x21AC
+Return = 0x1C62E (byte address)
+IO registers:
+:20000000000000008C0F0C03B7100200000220004B007300010030210200C0001D00C1009B
+:200020000000000DE70101E1010B000BF708000F0F0F202320070F070F0F0F00003C0000BD
+:20004000C82C000003034900000000005000B10030000000000000000000000000A1213535
+:200060002800000000008D000090050000000100000000000000000000009708470000004F
+:00000001FF
+Stack:
+:202183001BB32197108D1BBE108D0003000D00004E00009E87009E58009E57108D1BB300CA
+:2021A3000B44D00082250D6201200083C321C1010D6295AFAE1110A9030C0F7E00D92F329C
+:2021C3003031372D303900000000C260218408006E8B4120322E38356D6D000000000000FE
+:1D21E30000000040A69B443BCDCCCC3D3030303030300002002F0000268E0026CC46
+:00000001FF
+Dump complete
+```
+
+The "Return" address is the address the ISR will return to, so the point
+where the interrupt occured. The IO registers are intended to manually
+review for debugging. The stack dump is intended to be processed by this
+tool. The dump is in "Intel hex" format, you can create a .hex file by
+just copying the lines between "Stack" and "Dump complete" into a plain
+text file.
+
+When the stacktrace is long and/or you are using a low baudrate, the
+watchdog reset could trigger before the dump is complete. Be sure to
+check if the output is complete before trying to analyze it.
+
+Each line (except for the last, shorter line, which serves as an
+end-of-file indicator) is built from a one byte line length (usually
+0x20 = 32 bytes), a two-byte address, a single-byte record type (0x00
+for data lines), the actual data bytes (usually 32) and one checksum
+byte.
+
 Running
 -------
 To run this tool:
@@ -52,6 +90,22 @@ return address (e.g. where the interrupt occured) in the stacktrace.
 This address is printed by the example code, but this option can be
 omitted entirely.
 
+For example, to generate a dump from the example output below, the
+stack dump is copied into a file `dump.hex`, and we run:
+
+```
+./main.py --isr-return 0x13D0E --elf program.elf dump.hex
+AVR6 architecture detected, assuming 3-byte return addresses
+Stacktrace follows (most recent call first)
+0x013d0e: interrupt in StatusComponent::event(Screen*, Event) at Screen.h:1130
+0x010448: eicall in Screen::draw_now() at Screen.h:1130
+0x010784: eicall in Scheduler::execute() at Screen.h:1130
+0x01b25a: call in main at Main.cpp:378 called Scheduler::execute()
+```
+
+Note that for indirect calls (`icall` or `eicall`), only the caller is
+shown, the called function is not known.
+
 Limitations
 -----------
 When generating the stacktrace:
@@ -59,7 +113,8 @@ When generating the stacktrace:
    present.
  - There might be bogus entries resulting from random data in the stack.
  - Calls to interrupt handlers do not show up, since there is no
-   corresponding call instruction.
+   corresponding call instruction (but the ISR that triggered the dump
+   can be shown using `--isr-return`).
 
 For a completely correct stacktrace, this tool should analyze the stack
 by figuring out the stack frame sizes of the functions involved, so it
