@@ -140,11 +140,13 @@ inline void dumpMemory() {
   Serial.println(" (byte address)");
 
   // Dump I/O memory
+  Serial.println("IO registers:");
   dumpMemoryIhex(NULL, (uint8_t*)RAMSTART);
-  Serial.println("...");
+  Serial.println("Stack:");
   // Dump stack (SP is the next unused value, so SP + 1 is the first valid
   // stack value)
   dumpMemoryIhex((uint8_t*)sp + 1, (uint8_t*)RAMEND+1);
+  Serial.println("Dump complete");
 }
 
 ISR(WDT_vect) {
