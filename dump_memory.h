@@ -147,6 +147,8 @@ inline void dumpMemory() {
   // stack value)
   dumpMemoryIhex((uint8_t*)sp + 1, (uint8_t*)RAMEND+1);
   Serial.println("Dump complete");
+  // Ensure the output is transmitted before returning from the ISR
+  Serial.flush();
 }
 
 ISR(WDT_vect) {
