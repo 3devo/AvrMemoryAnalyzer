@@ -72,7 +72,7 @@ def address_to_function(symdict, address):
   if sym:
     return demangle(sym.name)
   else:
-    return 'unknown function'
+    return 'unknown function at 0x{:06x}'.format(address)
 
 def address_to_location(dwarf_info, addr):
   """
