@@ -229,7 +229,7 @@ def analyze_call(ins):
   if ins.info.mnemonic == 'call':
     callee_addr = ins.operands[0] * 2
   elif ins.info.mnemonic == 'rcall':
-    callee_addr = (ins.addr + ins.operands[0] + 1) * 2
+    callee_addr = ins.addr + (ins.operands[0] + 1) * 2
   elif ins.info.mnemonic == 'icall' or ins.info.mnemonic == 'eicall':
     callee_addr = None
   else:
