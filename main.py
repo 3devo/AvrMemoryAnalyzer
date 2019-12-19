@@ -58,7 +58,7 @@ def address_to_containing_function(symdict, address):
     # Address is before first function
     return 'unknown function'
   # -1 to get the symbol that starts *before* the given address
-  candidate = symdict[symdict.iloc[candidate_index - 1]]
+  candidate = symdict[symdict.keys()[candidate_index - 1]]
 
   start = candidate['st_value']
   end = start + candidate['st_size']
