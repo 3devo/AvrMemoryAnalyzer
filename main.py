@@ -37,7 +37,6 @@ from intelhex import IntelHex
 from collections import namedtuple
 from elftools.elf.elffile import ELFFile
 
-import avr
 import dwarf
 
 cppfilt = 'c++filt'
@@ -88,7 +87,7 @@ def address_to_location(dwarf_info, addr):
   else:
     return None
 
-def process_symtab(elf):
+def process_symtab(elf, arch):
   """
   Yields a sorted dictionary containing the function symbols in the
   .text section, indexed by their starting address.
@@ -111,31 +110,10 @@ def process_symtab(elf):
         print("Skipping function in section other than .text: {} in {}".format(section, demangle(sym.name)))
         continue
 
-      result[sym['st_value']] = sym
+      addr = arch.sym_to_addr(sym)
+
+      result[addr] = sym
   return result
-
-def find_callsites(elf, symdict):
-  """
-  Look through all code in the .text section and identify call
-  instructions. Returns a dictionary that maps the return address (i.e.
-  the instruction *after* the call instruction) for each call to the
-  avr.CallInfo object.
-  """
-  text = elf.get_section_by_name('.text')
-  data = text.data()
-  calls = {}
-
-  for sym in symdict.values():
-    offset = sym['st_value']
-    end = offset + sym['st_size']
-    while offset < end:
-      ins = avr.decode_instruction(data, offset, call_only = True)
-      call = avr.analyze_call(ins)
-      if call:
-        ret_addr = ins.addr + ins.info.length
-        calls[ret_addr] = call
-      offset += ins.info.length
-  return calls
 
 def generate_frame(symdict, dwarf_info, call):
   caller = address_to_containing_function(symdict, call.call_addr)
@@ -152,17 +130,17 @@ def generate_frame(symdict, dwarf_info, call):
 
   sys.stdout.write("\n")
 
-def generate_stacktrace(elf, memory, big, isr_ret):
+def generate_stacktrace(elf, memory, arch, isr_ret):
   """
   Generate a stacktrace on stdout from looking at the given memory dump
   and elf file.
   """
-  addrlen = 3 if big else 2
   dwarf_info = elf.get_dwarf_info()
-  symdict = process_symtab(elf)
+  symdict = process_symtab(elf, arch)
+  addrlen = arch.get_addrlen()
 
   # All call instructions in the program
-  callsites = find_callsites(elf, symdict)
+  callsites = arch.find_callsites(elf, symdict)
 
   print("Stacktrace follows (most recent call first)")
 
@@ -170,15 +148,12 @@ def generate_stacktrace(elf, memory, big, isr_ret):
     isr_call = CallInfo(mnemonic='interrupt', call_addr=isr_ret, callee_addr=None)
     generate_frame(symdict, dwarf_info, isr_call)
 
-  # Find all 2 or 3-byte pointers in the stack that match a call
+  # Find all addrlen-sized pointers in the stack that match a call
   # instruction (e.g. are likely a return address on the stack)
   addresses = memory.addresses()
   for addr in addresses:
     if all(addr + i in addresses for i in range(addrlen)):
-      wordptr = int.from_bytes(memory.tobinstr(start=addr, size=addrlen), byteorder = 'big')
-      # Memory contains word addresses, convert to byte addresses
-      ptr = wordptr * 2
-
+      ptr = arch.decode_ptr(memory.tobinstr(start=addr, size=addrlen))
       if ptr in callsites:
         generate_frame(symdict, dwarf_info, callsites[ptr])
 
@@ -195,38 +170,24 @@ def main():
   if args.cppfilt:
     cppfilt = args.cppfilt
 
-  big = False
-
   # Read elf file if specified
   elf = None
   if args.elf:
     # Note that file is kept open, ELFFile reads from it on the fly.
     elf = ELFFile(open(args.elf, 'rb'))
 
-    if elf['e_machine'] != 'EM_AVR':
-      sys.stderr.write("Not an AVR elf file (machine id: {}, flags: 0x{:X})\n".format(elf['e_machine'], elf['e_flags']))
+    if elf['e_machine'] == 'EM_AVR':
+      import avr
+      arch = avr.ArchAvr(elf)
+    else:
+      sys.stderr.write("Unsupported elf file architecture (machine id: {}, flags: 0x{:X})\n".format(elf['e_machine'], elf['e_flags']))
       sys.exit(1)
-
-    # https://sourceware.org/git/gitweb.cgi?p=binutils-gdb.git;a=blob;f=include/elf/avr.h;h=70d750b8c7147501dfc6c9cc2c201028e970171e;hb=HEAD#l27
-    # #define EF_AVR_MACH 0x7F
-    # #define E_AVR_MACH_AVR6     6
-    # #define E_AVR_MACH_AVRTINY 100
-    arch = elf['e_flags'] & 0x7F
-    if arch >= 100:
-      sys.stderr.write("AVR Xmega not supported\n")
-      sys.exit(1)
-
-    # avr6 chips have a > 128kbyte flash and need a 3-byte return
-    # address
-    if arch == 6:
-      print("AVR6 architecture detected, assuming 3-byte return addresses")
-      big = True
 
   # Read memory file
   memory = IntelHex(args.memory)
 
   if elf:
-    generate_stacktrace(elf, memory, big, args.isr_return)
+    generate_stacktrace(elf, memory, arch, args.isr_return)
   else:
     print("Need elf file to generate stack trace")
 

@@ -241,3 +241,70 @@ def analyze_call(ins):
     return None
 
   return CallInfo(mnemonic=ins.info.mnemonic, call_addr=ins.addr, callee_addr=callee_addr)
+
+class ArchAvr:
+  def __init__(self, elf):
+      # https://sourceware.org/git/gitweb.cgi?p=binutils-gdb.git;a=blob;f=include/elf/avr.h;h=70d750b8c7147501dfc6c9cc2c201028e970171e;hb=HEAD#l27
+      # #define EF_AVR_MACH 0x7F
+      # #define E_AVR_MACH_AVR6     6
+      # #define E_AVR_MACH_AVRTINY 100
+      arch = elf['e_flags'] & 0x7F
+      if arch >= 100:
+        raise Exception("AVR Xmega not supported\n")
+        sys.exit(1)
+
+      # avr6 chips have a > 128kbyte flash and need a 3-byte return
+      # address
+      if arch == 6:
+        print("AVR6 architecture detected, assuming 3-byte return addresses")
+        self.addrlen = 3
+      self.addrlen = 2
+
+  def get_addrlen(self):
+    """ Return the length of a return address on the stack. """
+    return self.addrlen
+
+  def get_alignment(self):
+    """ Return the alignment of a return address on the stack. """
+    return 1
+
+  def find_callsites(self, elf, symdict):
+    """
+    Look through all code in the .text section and identify call
+    instructions. Returns a dictionary that maps the return address (i.e.
+    the instruction *after* the call instruction) for each call to the
+    CallInfo object.
+    """
+    text = elf.get_section_by_name('.text')
+    data = text.data()
+    calls = {}
+
+    for sym in symdict.values():
+      offset = sym['st_value']
+      end = offset + sym['st_size']
+      while offset < end:
+        ins = decode_instruction(data, offset, call_only = True)
+        call = analyze_call(ins)
+        if call:
+          ret_addr = ins.addr + ins.info.length
+          calls[ret_addr] = call
+        offset += ins.info.length
+    return calls
+
+  def decode_ptr(self, bytestr):
+    """
+    Decode a given stack fragment of size addrlen into a return address.
+    """
+
+    wordptr = int.from_bytes(bytestr, byteorder = 'big')
+
+    # Memory contains word addresses, convert to byte addresses
+    return wordptr * 2
+
+  def sym_to_addr(self, sym):
+    """
+    Return the address of the given symbol.
+    """
+    return sym['st_value']
+
+__all__ = ('ArchAvr',)
