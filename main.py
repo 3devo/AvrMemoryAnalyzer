@@ -34,12 +34,15 @@ import argparse
 import subprocess
 import sortedcontainers
 from intelhex import IntelHex
+from collections import namedtuple
 from elftools.elf.elffile import ELFFile
 
 import avr
 import dwarf
 
 cppfilt = 'c++filt'
+
+CallInfo = namedtuple('CallInfo', ['mnemonic', 'call_addr', 'callee_addr'])
 
 def demangle(name):
   """ Demangle the given name """
@@ -134,17 +137,17 @@ def find_callsites(elf, symdict):
       offset += ins.info.length
   return calls
 
-def generate_frame(symdict, dwarf_info, mnemonic, call_addr, callee_addr):
-  caller = address_to_containing_function(symdict, call_addr)
-  sys.stdout.write("0x{:06x}: {} in {}".format(call_addr, mnemonic, caller))
+def generate_frame(symdict, dwarf_info, call):
+  caller = address_to_containing_function(symdict, call.call_addr)
+  sys.stdout.write("0x{:06x}: {} in {}".format(call.call_addr, call.mnemonic, caller))
 
   # TODO: This is fairly slow
-  location = address_to_location(dwarf_info, call_addr)
+  location = address_to_location(dwarf_info, call.call_addr)
   if location:
     sys.stdout.write(" at {}".format(location))
 
-  if callee_addr:
-    callee = address_to_function(symdict, callee_addr)
+  if call.callee_addr:
+    callee = address_to_function(symdict, call.callee_addr)
     sys.stdout.write(" called {}".format(callee))
 
   sys.stdout.write("\n")
@@ -164,7 +167,8 @@ def generate_stacktrace(elf, memory, big, isr_ret):
   print("Stacktrace follows (most recent call first)")
 
   if isr_ret:
-    generate_frame(symdict, dwarf_info, 'interrupt', isr_ret, None)
+    isr_call = CallInfo(mnemonic='interrupt', call_addr=isr_ret, callee_addr=None)
+    generate_frame(symdict, dwarf_info, isr_call)
 
   # Find all 2 or 3-byte pointers in the stack that match a call
   # instruction (e.g. are likely a return address on the stack)
@@ -176,8 +180,7 @@ def generate_stacktrace(elf, memory, big, isr_ret):
       ptr = wordptr * 2
 
       if ptr in callsites:
-        call = callsites[ptr]
-        generate_frame(symdict, dwarf_info, call.instruction.info.mnemonic, call.instruction.addr, call.callee_addr)
+        generate_frame(symdict, dwarf_info, callsites[ptr])
 
 def main():
   parser = argparse.ArgumentParser(description = 'Analyze AVR memory dumps')

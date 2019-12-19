@@ -223,9 +223,9 @@ def decode_instruction(data, offset, call_only = False):
 
   return Instruction(addr=offset, info=unknown_instruction, raw=0, operands=[])
 
-CallInfo = namedtuple('CallInfo', ['instruction', 'callee_addr'])
-
+CallInfo = namedtuple('CallInfo', ['mnemonic', 'call_addr', 'callee_addr'])
 def analyze_call(ins):
+  """ Analyze an instruction and return a CallInfo if it is a call. """
   if ins.info.mnemonic == 'call':
     callee_addr = ins.operands[0] * 2
   elif ins.info.mnemonic == 'rcall' and ins.operands[0] == 0:
@@ -240,4 +240,4 @@ def analyze_call(ins):
   else:
     return None
 
-  return CallInfo(instruction=ins, callee_addr=callee_addr)
+  return CallInfo(mnemonic=ins.info.mnemonic, call_addr=ins.addr, callee_addr=callee_addr)
