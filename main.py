@@ -201,7 +201,7 @@ def main():
     elf = ELFFile(open(args.elf, 'rb'))
 
     if elf['e_machine'] != 'EM_AVR':
-      sys.stderr.write("Not an AVR elf file (machine id: 0x%{:04X})\n".format(elf['e_machine']))
+      sys.stderr.write("Not an AVR elf file (machine id: {}, flags: 0x{:X})\n".format(elf['e_machine'], elf['e_flags']))
       sys.exit(1)
 
     # https://sourceware.org/git/gitweb.cgi?p=binutils-gdb.git;a=blob;f=include/elf/avr.h;h=70d750b8c7147501dfc6c9cc2c201028e970171e;hb=HEAD#l27
