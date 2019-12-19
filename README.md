@@ -137,6 +137,12 @@ This tool relies on three python libraries:
     pip3 install pyelftools
     pip3 install intelhex
     pip3 install sortedcontainers
+    pip3 install capstone
+
+The capstone package requires the capstone C library (development
+files), but is also available in Debian in the python3-capstone package,
+which might be easier than installing from pip. It is only required for
+ARM, AVR can be decoded without it.
 
 In addition, it needs the `c++filt` (or `avr-c++filt`) tool to do
 demangling of function names. It assumes the former is available on the

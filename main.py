@@ -179,6 +179,9 @@ def main():
     if elf['e_machine'] == 'EM_AVR':
       import avr
       arch = avr.ArchAvr(elf)
+    elif elf['e_machine'] == 'EM_ARM':
+      import arm
+      arch = arm.ArchArm(elf)
     else:
       sys.stderr.write("Unsupported elf file architecture (machine id: {}, flags: 0x{:X})\n".format(elf['e_machine'], elf['e_flags']))
       sys.exit(1)
