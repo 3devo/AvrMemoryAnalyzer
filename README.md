@@ -134,9 +134,9 @@ Dependencies
 ------------
 This tool relies on three python libraries:
 
-	pip3 install pyelftools
-	pip3 install intelhex
-	pip3 install sortedcontainers
+    pip3 install pyelftools
+    pip3 install intelhex
+    pip3 install sortedcontainers
 
 In addition, it needs the `c++filt` (or `avr-c++filt`) tool to do
 demangling of function names. It assumes the former is available on the
