@@ -76,15 +76,15 @@ def address_to_function(symdict, address):
   else:
     return 'unknown function at 0x{:06x}'.format(address)
 
-def address_to_location(dwarf_info, addr):
+def address_to_location(addr_to_line, addr):
   """
   Convert an instruction address to the filename and number containing
   it, or None if no info was found.
   """
-  path, line = dwarf.decode_file_line(dwarf_info, addr)
-  if path and line:
+  try:
+    path, line = addr_to_line[addr]
     return "{}:{}".format(path.decode('utf8'), line)
-  else:
+  except KeyError:
     return None
 
 def process_symtab(elf, arch):
@@ -115,12 +115,11 @@ def process_symtab(elf, arch):
       result[addr] = sym
   return result
 
-def generate_frame(symdict, dwarf_info, call):
+def generate_frame(symdict, addr_to_line, call):
   caller = address_to_containing_function(symdict, call.call_addr)
   sys.stdout.write("0x{:06x}: {} in {}".format(call.call_addr, call.mnemonic, caller))
 
-  # TODO: This is fairly slow
-  location = address_to_location(dwarf_info, call.call_addr)
+  location = address_to_location(addr_to_line, call.call_addr)
   if location:
     sys.stdout.write(" at {}".format(location))
 
@@ -135,7 +134,7 @@ def generate_stacktrace(elf, memory, arch, isr_ret):
   Generate a stacktrace on stdout from looking at the given memory dump
   and elf file.
   """
-  dwarf_info = elf.get_dwarf_info()
+  addr_to_line = dwarf.get_addr_to_line_map(elf)
   symdict = process_symtab(elf, arch)
   addrlen = arch.get_addrlen()
 
@@ -146,7 +145,7 @@ def generate_stacktrace(elf, memory, arch, isr_ret):
 
   if isr_ret:
     isr_call = CallInfo(mnemonic='interrupt', call_addr=isr_ret, callee_addr=None)
-    generate_frame(symdict, dwarf_info, isr_call)
+    generate_frame(symdict, addr_to_line, isr_call)
 
   # Find all addrlen-sized pointers in the stack that match a call
   # instruction (e.g. are likely a return address on the stack)
@@ -155,7 +154,7 @@ def generate_stacktrace(elf, memory, arch, isr_ret):
     if all(addr + i in addresses for i in range(addrlen)):
       ptr = arch.decode_ptr(memory.tobinstr(start=addr, size=addrlen))
       if ptr in callsites:
-        generate_frame(symdict, dwarf_info, callsites[ptr])
+        generate_frame(symdict, addr_to_line, callsites[ptr])
 
 def main():
   parser = argparse.ArgumentParser(description = 'Analyze AVR memory dumps')
