@@ -135,37 +135,37 @@ inline void dumpMemoryIhex(uint8_t *addr, uint8_t *end) {
 }
 
 #ifndef __AVR_3_BYTE_PC__
-	// On 2-byte PC processors, we can just use the builtin function
-	// This returns a word address, not a byte address
-	inline uint16_t get_return_address() __attribute__((__always_inline__));
-	inline uint16_t get_return_address() { return (uint16_t)__builtin_return_address(0); }
+  // On 2-byte PC processors, we can just use the builtin function
+  // This returns a word address, not a byte address
+  inline uint16_t get_return_address() __attribute__((__always_inline__));
+  inline uint16_t get_return_address() { return (uint16_t)__builtin_return_address(0); }
 #else
-	// On 3-byte PC processors, the builtin doesn't work, so we'll
-	// improvise
-	// This returns a word address, not a byte address
-	inline uint32_t get_return_address() __attribute__((__always_inline__));
-	inline uint32_t get_return_address() {
-		// Frame layout:
-		// [RA0]
-		// [RA1]
-		// [RA2]
-		// ... Variables ...
-		// [empty] <-- SP
+  // On 3-byte PC processors, the builtin doesn't work, so we'll
+  // improvise
+  // This returns a word address, not a byte address
+  inline uint32_t get_return_address() __attribute__((__always_inline__));
+  inline uint32_t get_return_address() {
+    // Frame layout:
+    // [RA0]
+    // [RA1]
+    // [RA2]
+    // ... Variables ...
+    // [empty] <-- SP
 
-		// Find out how big the stack usage of the function
-		// (into which we are inlined) is. It seems gcc won't
-		// tell us, but we can trick the assembler into telling
-		// us at runtime.
-		uint8_t stack_usage;
-		__asm__ __volatile__("ldi %0, .L__stack_usage" : "=r"(stack_usage));
+    // Find out how big the stack usage of the function
+    // (into which we are inlined) is. It seems gcc won't
+    // tell us, but we can trick the assembler into telling
+    // us at runtime.
+    uint8_t stack_usage;
+    __asm__ __volatile__("ldi %0, .L__stack_usage" : "=r"(stack_usage));
 
-		// Using the stack usage, we can find the top of the
-		// frame (the byte below the return address)
-		uint8_t *frame_top = (uint8_t*)SP + stack_usage;
+    // Using the stack usage, we can find the top of the
+    // frame (the byte below the return address)
+    uint8_t *frame_top = (uint8_t*)SP + stack_usage;
 
-		// And then read the return address
-		return (uint32_t)frame_top[1] << 16 | (uint16_t)frame_top[2] << 8 | frame_top[3];
-	}
+    // And then read the return address
+    return (uint32_t)frame_top[1] << 16 | (uint16_t)frame_top[2] << 8 | frame_top[3];
+  }
 #endif
 
 inline void dumpMemory() __attribute__((__always_inline__));
