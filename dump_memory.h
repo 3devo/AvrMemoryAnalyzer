@@ -28,17 +28,11 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#if defined(__AVR__)
 #include <util/atomic.h>
+#include <avr/wdt.h>
+#endif
 
-inline void init_wdt() {
-  // Note that this enables the watchdog interrupt, but also keeps the
-  // watchdog itself enabled. The first time the watchdog triggers, the
-  // interrupt runs and dumps the stack, but the second time it
-  // triggers, the system is reset to prevent deadlock. This could cause
-  // the memory output to be cut short (especially on low baudrates).
-  wdt_enable(WDTO_4S);
-  WDTCSR |= (1 << WDIE);
-}
 
 inline void printHex(uint8_t byte) {
   if (byte < 0x10)
@@ -135,12 +129,14 @@ inline void dumpMemoryIhex(uint8_t *addr, uint8_t *end) {
 }
 
 #ifndef __AVR_3_BYTE_PC__
-  // On 2-byte PC processors, we can just use the builtin function
-  // This returns a word address, not a byte address
-  inline uint16_t get_return_address() __attribute__((__always_inline__));
-  inline uint16_t get_return_address() { return (uint16_t)__builtin_return_address(0); }
+  // On 2-byte PC processors (or non-AVR), we can just use the builtin function
+  // On AVR, this returns a word address, not a byte address
+  inline uintptr_t get_return_address() __attribute__((__always_inline__));
+  inline uintptr_t get_return_address() { return (uintptr_t)__builtin_return_address(0); }
+
+  using retaddr_t = uintptr_t;
 #else
-  // On 3-byte PC processors, the builtin doesn't work, so we'll
+  // On AVR 3-byte PC processors, the builtin doesn't work, so we'll
   // improvise
   // This returns a word address, not a byte address
   inline uint32_t get_return_address() __attribute__((__always_inline__));
@@ -166,9 +162,13 @@ inline void dumpMemoryIhex(uint8_t *addr, uint8_t *end) {
     // And then read the return address
     return (uint32_t)frame_top[1] << 16 | (uint16_t)frame_top[2] << 8 | frame_top[3];
   }
+
+  // We also need a retaddr variable that is bigger than uintptr_t
+  using retaddr_t = uint32_t;
 #endif
 
 inline void dumpMemory() __attribute__((__always_inline__));
+#if defined(__AVR__)
 inline void dumpMemory() {
   uint16_t sp;
   ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
@@ -192,7 +192,36 @@ inline void dumpMemory() {
   Serial.flush();
 }
 
+inline void init_wdt() {
+  // Note that this enables the watchdog interrupt, but also keeps the
+  // watchdog itself enabled. The first time the watchdog triggers, the
+  // interrupt runs and dumps the stack, but the second time it
+  // triggers, the system is reset to prevent deadlock. This could cause
+  // the memory output to be cut short (especially on low baudrates).
+  wdt_enable(WDTO_4S);
+  WDTCSR |= (1 << WDIE);
+}
+
 ISR(WDT_vect) {
   dumpMemory();
 }
 
+#elif defined(ARDUINO_ARCH_STM32)
+void dumpMemory() {
+  sp = __get_MSP();
+  Serial.print("SP = 0x");
+  Serial.println(sp, HEX);
+  Serial.print("Return = 0x");
+  Serial.print(get_return_address(), HEX);
+  Serial.println(" (byte address)");
+
+  // I/O memory is fragmented over different devices on STM32, so do not
+  // dump that here.
+
+  Serial.println("Stack:");
+  // Dump stack (SP is the first used value)
+  dumpMemoryIhex((uint8_t*)sp, (uint8_t*)&_estack);
+  // Ensure the output is transmitted before returning from the ISR
+  Serial.flush();
+}
+#endif
