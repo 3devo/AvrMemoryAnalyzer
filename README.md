@@ -1,8 +1,13 @@
-AVR memory analyzer
-===================
-This tool analyzes memory dumps from AVR chips. Currently it assumes
-that the entire memory read is the stack and constructs a stacktrace
-from it.
+AVR/ARM memory analyzer
+=======================
+This tool analyzes memory dumps from AVR or ARM chips. Currently it
+assumes that the entire memory read is the stack and constructs a
+stacktrace from it.
+
+This should support all AVR and ARM chips, though ARM support is
+limited: Only an STM32F4 chip was tested and memory dumping example code
+is only available for STM32 chips. Things will likely just work on other
+STM32 chips and with minimal effort on other chips too.
 
 Constructing a stacktrace uses a somewhat rough method: It tries to
 interpret all data on the stack as if they were return addresses, and
@@ -101,8 +106,8 @@ stack dump is copied into a file `dump.hex`, and we run:
     0x010784: eicall in Scheduler::execute() at Screen.h:1130
     0x01b25a: call in main at Main.cpp:378 called Scheduler::execute()
 
-Note that for indirect calls (`icall` or `eicall`), only the caller is
-shown, the called function is not known.
+Note that for indirect calls (`icall` or `eicall` on AVR), only the
+caller is shown, the called function is not known.
 
 Limitations
 -----------
