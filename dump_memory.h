@@ -56,8 +56,42 @@ inline void printHex(uint16_t byte) {
   Serial.print((uintptr_t)byte, HEX);
 }
 
-inline void dumpLineIhex(uint8_t *addr, uint8_t *end) {
+inline void printHex(uint32_t byte) {
+  if ((uintptr_t)byte < 0x10000000)
+    Serial.write('0');
+  if ((uintptr_t)byte < 0x1000000)
+    Serial.write('0');
+  if ((uintptr_t)byte < 0x100000)
+    Serial.write('0');
+  if ((uintptr_t)byte < 0x10000)
+    Serial.write('0');
+  if ((uintptr_t)byte < 0x1000)
+    Serial.write('0');
+  if ((uintptr_t)byte < 0x100)
+    Serial.write('0');
+  if ((uintptr_t)byte < 0x10)
+    Serial.write('0');
+  Serial.print((uintptr_t)byte, HEX);
+}
+
+inline void dumpExtAddrLineIhex(uint16_t upper_addr) {
+  // Since normal records only have 16 address bit, this special record
+  // sets the upper 16 address bits to be a prepended to all subsequent
+  // records.
+  Serial.print(":02000004");
+  printHex(upper_addr);
+
+  uint8_t sum = 0 - 2 - 4 - (upper_addr >> 8) - (upper_addr & 0xff);
+  printHex(sum);
+  Serial.println();
+}
+
+inline void dumpLineIhex(uint8_t *addr, uint8_t *end, uint8_t *prev_addr) {
   uint8_t sum = 0;
+
+  uintptr_t intaddr = (uintptr_t)addr;
+  if ((intaddr >> 16) != ((uintptr_t)prev_addr >> 16))
+    dumpExtAddrLineIhex(intaddr >> 16);
 
   Serial.write(':');
   uint8_t len = end - addr;
@@ -66,10 +100,10 @@ inline void dumpLineIhex(uint8_t *addr, uint8_t *end) {
   sum -= len;
 
   // Addr
-  uint16_t intaddr = (uint16_t)addr;
-  printHex(intaddr);
-  sum -= intaddr >> 8;
-  sum -= intaddr & 0xff;
+  uint16_t addr16 = (uint16_t)intaddr;
+  printHex(addr16);
+  sum -= addr16 >> 8;
+  sum -= addr16 & 0xff;
 
   // Record type
   printHex((uint8_t)0);
@@ -87,11 +121,13 @@ inline void dumpLineIhex(uint8_t *addr, uint8_t *end) {
 static const uint8_t LINE_LENGTH = 32;
 
 inline void dumpMemoryIhex(uint8_t *addr, uint8_t *end) {
+  uint8_t *prev_addr = nullptr;
   while (addr < end) {
     uint8_t *next = addr + LINE_LENGTH;
     if (next > end)
       next = end;
-    dumpLineIhex(addr, next);
+    dumpLineIhex(addr, next, prev_addr);
+    prev_addr = addr;
     addr = next;
   }
   // EOF marker
