@@ -90,18 +90,16 @@ return address (e.g. where the interrupt occured) in the stacktrace.
 This address is printed by the example code, but this option can be
 omitted entirely.
 
-For example, to generate a dump from the example output below, the
+For example, to generate a dump from the example output above, the
 stack dump is copied into a file `dump.hex`, and we run:
 
-```
-./main.py --isr-return 0x13D0E --elf program.elf dump.hex
-AVR6 architecture detected, assuming 3-byte return addresses
-Stacktrace follows (most recent call first)
-0x013d0e: interrupt in StatusComponent::event(Screen*, Event) at Screen.h:1130
-0x010448: eicall in Screen::draw_now() at Screen.h:1130
-0x010784: eicall in Scheduler::execute() at Screen.h:1130
-0x01b25a: call in main at Main.cpp:378 called Scheduler::execute()
-```
+    ./main.py --isr-return 0x13D0E --elf program.elf dump.hex
+    AVR6 architecture detected, assuming 3-byte return addresses
+    Stacktrace follows (most recent call first)
+    0x013d0e: interrupt in StatusComponent::event(Screen*, Event) at Screen.h:1130
+    0x010448: eicall in Screen::draw_now() at Screen.h:1130
+    0x010784: eicall in Scheduler::execute() at Screen.h:1130
+    0x01b25a: call in main at Main.cpp:378 called Scheduler::execute()
 
 Note that for indirect calls (`icall` or `eicall`), only the caller is
 shown, the called function is not known.
