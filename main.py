@@ -115,9 +115,14 @@ def process_symtab(elf, arch):
       result[addr] = sym
   return result
 
-def generate_frame(symdict, addr_to_line, call):
+def generate_frame(symdict, stack_addr, addr_to_line, call):
   caller = address_to_containing_function(symdict, call.call_addr)
-  sys.stdout.write("0x{:06x}: {} in {}".format(call.call_addr, call.mnemonic, caller))
+  if isinstance(stack_addr, str):
+    stack_addr_str = stack_addr
+  else:
+    stack_addr_str = "0x{:06x}".format(stack_addr)
+
+  sys.stdout.write("{} contains 0x{:06x}: {} in {}".format(stack_addr_str, call.call_addr, call.mnemonic, caller))
 
   location = address_to_location(addr_to_line, call.call_addr)
   if location:
@@ -145,7 +150,7 @@ def generate_stacktrace(elf, memory, arch, isr_ret, align):
 
   if isr_ret:
     isr_call = CallInfo(mnemonic='interrupt', call_addr=isr_ret, callee_addr=None)
-    generate_frame(symdict, addr_to_line, isr_call)
+    generate_frame(symdict, 'isr-return', addr_to_line, isr_call)
 
   # Find all addrlen-sized pointers in the stack that match a call
   # instruction (e.g. are likely a return address on the stack)
@@ -154,7 +159,7 @@ def generate_stacktrace(elf, memory, arch, isr_ret, align):
     if addr % align == 0 and all(addr + i in addresses for i in range(addrlen)):
       ptr = arch.decode_ptr(memory.tobinstr(start=addr, size=addrlen))
       if ptr in callsites:
-        generate_frame(symdict, addr_to_line, callsites[ptr])
+        generate_frame(symdict, addr, addr_to_line, callsites[ptr])
 
 def main():
   parser = argparse.ArgumentParser(description = 'Analyze AVR memory dumps')
