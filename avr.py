@@ -258,7 +258,8 @@ class ArchAvr:
       if arch == 6:
         print("AVR6 architecture detected, assuming 3-byte return addresses")
         self.addrlen = 3
-      self.addrlen = 2
+      else:
+        self.addrlen = 2
 
   def get_addrlen(self):
     """ Return the length of a return address on the stack. """
