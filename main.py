@@ -134,7 +134,7 @@ def generate_frame(symdict, stack_addr, addr_to_line, call):
 
   sys.stdout.write("\n")
 
-def generate_stacktrace(elf, memory, arch, isr_ret, align):
+def generate_stacktrace(elf, memory, arch, sp, isr_ret, align):
   """
   Generate a stacktrace on stdout from looking at the given memory dump
   and elf file.
@@ -156,6 +156,9 @@ def generate_stacktrace(elf, memory, arch, isr_ret, align):
   # instruction (e.g. are likely a return address on the stack)
   addresses = memory.addresses()
   for addr in addresses:
+    if sp is not None and addr < sp:
+      continue
+
     if addr % align == 0 and all(addr + i in addresses for i in range(addrlen)):
       ptr = arch.decode_ptr(memory.tobinstr(start=addr, size=addrlen))
       if ptr in callsites:
@@ -167,6 +170,7 @@ def main():
   parser.add_argument('--elf', help='Compiled elf file')
   parser.add_argument('--cppfilt', help='Path to c++filt command')
   parser.add_argument('--unaligned', action='store_true', help='Ignore alignment of stack values, might produce a more complete trace')
+  parser.add_argument('--sp', help='Stack pointer, only analyze data from this (byte) address upwards (useful when hex file contains a full memory dump)', metavar='0x123', type=lambda x: int(x, 0))
   parser.add_argument('memory', help='Memory dump file')
   args = parser.parse_args()
 
@@ -200,6 +204,6 @@ def main():
   else:
     align = arch.get_alignment()
 
-  generate_stacktrace(elf, memory, arch, args.isr_return, align)
+  generate_stacktrace(elf, memory, arch, args.sp, args.isr_return, align)
 
 main()
