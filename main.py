@@ -165,26 +165,27 @@ def main():
   parser.add_argument('memory', help='Memory dump file')
   args = parser.parse_args()
 
+  if not args.elf:
+    sys.stderr.write("Need elf file to generate stack trace\nb")
+    sys.exit(1)
+
   # Store cppfilt option
   global cppfilt
   if args.cppfilt:
     cppfilt = args.cppfilt
 
-  # Read elf file if specified
-  elf = None
-  if args.elf:
-    # Note that file is kept open, ELFFile reads from it on the fly.
-    elf = ELFFile(open(args.elf, 'rb'))
+  # Note that file is kept open, ELFFile reads from it on the fly.
+  elf = ELFFile(open(args.elf, 'rb'))
 
-    if elf['e_machine'] == 'EM_AVR':
-      import avr
-      arch = avr.ArchAvr(elf)
-    elif elf['e_machine'] == 'EM_ARM':
-      import arm
-      arch = arm.ArchArm(elf)
-    else:
-      sys.stderr.write("Unsupported elf file architecture (machine id: {}, flags: 0x{:X})\n".format(elf['e_machine'], elf['e_flags']))
-      sys.exit(1)
+  if elf['e_machine'] == 'EM_AVR':
+    import avr
+    arch = avr.ArchAvr(elf)
+  elif elf['e_machine'] == 'EM_ARM':
+    import arm
+    arch = arm.ArchArm(elf)
+  else:
+    sys.stderr.write("Unsupported elf file architecture (machine id: {}, flags: 0x{:X})\n".format(elf['e_machine'], elf['e_flags']))
+    sys.exit(1)
 
   # Read memory file
   memory = IntelHex(args.memory)
@@ -194,9 +195,6 @@ def main():
   else:
     align = arch.get_alignment()
 
-  if elf:
-    generate_stacktrace(elf, memory, arch, args.isr_return, align)
-  else:
-    print("Need elf file to generate stack trace")
+  generate_stacktrace(elf, memory, arch, args.isr_return, align)
 
 main()
